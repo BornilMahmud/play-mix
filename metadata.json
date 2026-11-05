@@ -1,0 +1,6 @@
+{
+  "name": "Play Mix",
+  "description": "Premium native Android music player with Media3 background playback, lock-screen controls, 5-band hardware equalizer, and synchronized lyrics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

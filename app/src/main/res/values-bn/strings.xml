@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">প্লে মিক্স (Play Mix)</string>
+    <string name="notification_channel_name">প্লে মিক্স প্লেব্যাক</string>
+    <string name="notification_channel_desc">সঙ্গীত প্লেব্যাক এবং লক-স্ক্রিন নিয়ন্ত্রণ</string>
+    <string name="sleep_timer_channel_name">স্লিপ টাইমার</string>
+    <string name="cd_album_art">অ্যালবাম আর্টওয়ার্ক</string>
+    <string name="cd_play_pause">চালান বা বিরতি দিন</string>
+    <string name="cd_next_track">পরবর্তী গান</string>
+    <string name="cd_previous_track">পূর্ববর্তী গান</string>
+    <string name="cd_shuffle">শাফল</string>
+    <string name="cd_repeat">রিপিট মোড</string>
+    <string name="cd_favorite">পছন্দের তালিকা</string>
+    <string name="cd_queue">প্লেব্যাক কিউ</string>
+    <string name="cd_lyrics">লিরিক্স</string>
+    <string name="cd_equalizer">ইকুয়ালাইজার</string>
+    <string name="cd_volume">ভলিউম</string>
+    <string name="cd_sleep_timer">স্লিপ টাইমার</string>
+    <string name="cd_search">গান খুঁজুন</string>
+    <string name="cd_rescan">লাইব্রেরি স্ক্যান করুন</string>
+    <string name="cd_add_folder">ফোল্ডার যোগ করুন</string>
+</resources>
