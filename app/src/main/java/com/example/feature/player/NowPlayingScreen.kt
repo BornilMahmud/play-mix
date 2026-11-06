@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -218,11 +219,12 @@ fun NowPlayingScreen(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        ElectricViolet.copy(alpha = 0.28f),
-                        DeepBlue.copy(alpha = 0.22f),
+                        ElectricViolet.copy(alpha = 0.24f),
+                        DeepBlue.copy(alpha = 0.18f),
                         MaterialTheme.colorScheme.background,
                         MaterialTheme.colorScheme.background
                     )
@@ -233,6 +235,7 @@ fun NowPlayingScreen(
             .testTag("now_playing_screen")
     ) {
         val isLandscape = maxWidth > 640.dp
+        val portraitArtSize = (maxHeight * 0.32f).coerceIn(176.dp, 244.dp)
 
         if (song == null) {
             Column(
@@ -618,42 +621,60 @@ fun NowPlayingScreen(
                 // Bottom Action Pills: Queue, Synchronized Lyrics, Equalizer
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilledTonalButton(
                         onClick = { activeSheet = ActivePlayerSheet.QUEUE },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
                             .testTag("open_queue_sheet_btn")
                     ) {
-                        Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Queue (${playbackState.queue.size})", maxLines = 1)
+                        Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Queue (${playbackState.queue.size})",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     FilledTonalButton(
                         onClick = { activeSheet = ActivePlayerSheet.LYRICS },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
                             .testTag("open_lyrics_sheet_btn")
                     ) {
-                        Icon(Icons.Default.Lyrics, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Lyrics", maxLines = 1)
+                        Icon(Icons.Default.Lyrics, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Lyrics",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     FilledTonalButton(
                         onClick = { activeSheet = ActivePlayerSheet.EQUALIZER },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
                             .testTag("open_eq_sheet_btn")
                     ) {
-                        Icon(Icons.Default.Equalizer, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Audio EQ", maxLines = 1)
+                        Icon(Icons.Default.Equalizer, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Audio EQ",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -682,7 +703,12 @@ fun NowPlayingScreen(
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         text = if (song.isOnlineStream) "ONLINE STREAM" else "NOW PLAYING",
                         style = MaterialTheme.typography.labelSmall,
@@ -790,15 +816,13 @@ fun NowPlayingScreen(
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     artworkOrVinylComposable(
-                        Modifier
-                            .fillMaxWidth(0.82f)
-                            .aspectRatio(1f)
+                        Modifier.size(portraitArtSize)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     controlsColumnComposable(Modifier.fillMaxWidth())
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }

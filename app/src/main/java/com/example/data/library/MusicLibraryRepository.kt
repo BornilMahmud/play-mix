@@ -1,11 +1,20 @@
 package com.example.data.library
 
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.database.ContentObserver
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import androidx.core.content.ContextCompat
 import com.example.core.database.BookmarkEntity
 import com.example.core.database.ExcludedFolderEntity
 import com.example.core.database.NamedQueueEntity
@@ -49,11 +58,27 @@ class MusicLibraryRepository(
     private val _mediaStoreChangeSignal = MutableStateFlow(0L)
     val mediaStoreChangeSignal: StateFlow<Long> = _mediaStoreChangeSignal.asStateFlow()
 
+    private val _newlyAddedSongsSignal = MutableStateFlow<List<String>>(emptyList())
+    val newlyAddedSongsSignal: StateFlow<List<String>> = _newlyAddedSongsSignal.asStateFlow()
+
     private var mediaStoreObserverRegistered = false
+    private val directoryFileObservers = mutableListOf<FileObserver>()
+
     private val mediaStoreContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             super.onChange(selfChange, uri)
             _mediaStoreChangeSignal.value = System.currentTimeMillis()
+        }
+    }
+
+    private val downloadCompleteReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            val action = intent?.action ?: return
+            if (action == DownloadManager.ACTION_DOWNLOAD_COMPLETE ||
+                action == Intent.ACTION_MEDIA_SCANNER_FINISHED
+            ) {
+                _mediaStoreChangeSignal.value = System.currentTimeMillis()
+            }
         }
     }
 
@@ -65,7 +90,63 @@ class MusicLibraryRepository(
                 true,
                 mediaStoreContentObserver
             )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                context.contentResolver.registerContentObserver(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    true,
+                    mediaStoreContentObserver
+                )
+            }
+            val filter = IntentFilter().apply {
+                addAction(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+                addAction(Intent.ACTION_MEDIA_SCANNER_FINISHED)
+            }
+            ContextCompat.registerReceiver(
+                context,
+                downloadCompleteReceiver,
+                filter,
+                ContextCompat.RECEIVER_EXPORTED
+            )
+            registerPublicDirectoryFileObservers()
             mediaStoreObserverRegistered = true
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun registerPublicDirectoryFileObservers() {
+        directoryFileObservers.forEach { runCatching { it.stopWatching() } }
+        directoryFileObservers.clear()
+
+        val watchedDirs = listOfNotNull(
+            runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) }.getOrNull(),
+            runCatching { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC) }.getOrNull()
+        ).filter { it.exists() && it.isDirectory }
+
+        val mask = FileObserver.CREATE or FileObserver.MOVED_TO or FileObserver.CLOSE_WRITE
+        for (dir in watchedDirs) {
+            runCatching {
+                val observer = object : FileObserver(dir.absolutePath, mask) {
+                    override fun onEvent(event: Int, path: String?) {
+                        if (path.isNullOrBlank() || path.startsWith(".")) return
+                        val targetFile = File(dir, path)
+                        val ext = targetFile.extension.lowercase()
+                        if (ext in setOf("mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "oga", "weba")) {
+                            runCatching {
+                                MediaScannerConnection.scanFile(
+                                    context,
+                                    arrayOf(targetFile.absolutePath),
+                                    null
+                                ) { _, _ ->
+                                    _mediaStoreChangeSignal.value = System.currentTimeMillis()
+                                }
+                            }
+                            _mediaStoreChangeSignal.value = System.currentTimeMillis()
+                        }
+                    }
+                }
+                observer.startWatching()
+                directoryFileObservers.add(observer)
+            }
         }
     }
 
@@ -73,6 +154,9 @@ class MusicLibraryRepository(
         if (!mediaStoreObserverRegistered) return
         runCatching {
             context.contentResolver.unregisterContentObserver(mediaStoreContentObserver)
+            context.unregisterReceiver(downloadCompleteReceiver)
+            directoryFileObservers.forEach { runCatching { it.stopWatching() } }
+            directoryFileObservers.clear()
             mediaStoreObserverRegistered = false
         }
     }
@@ -311,6 +395,9 @@ class MusicLibraryRepository(
             )
         }
 
+        val hadPreviousScan = existingMap.any { !it.value.isDemoTrack }
+        val newlyAddedMusicTitles = mutableListOf<String>()
+
         val allDiscovered = (demoSeed.songs + mediaStoreSongs + safSongs)
             .distinctBy { it.id }
             .map { fresh ->
@@ -352,11 +439,17 @@ class MusicLibraryRepository(
                         mimeType = prev.mimeType.ifBlank { fresh.mimeType }
                     )
                 } else {
+                    if (hadPreviousScan && !fresh.isDemoTrack && fresh.primaryCategory == AudioCategory.MUSIC.id) {
+                        newlyAddedMusicTitles.add(fresh.title)
+                    }
                     fresh.copy(rating = if (fresh.isFavorite) 5 else 4)
                 }
             }
 
         dao.upsertSongs(allDiscovered)
+        if (newlyAddedMusicTitles.isNotEmpty()) {
+            _newlyAddedSongsSignal.value = newlyAddedMusicTitles
+        }
 
         if (dao.getAllSongsSnapshot().isNotEmpty() && dao.getPlaylistSongRefs(1L).isEmpty()) {
             val defaultPlaylistId = dao.insertPlaylist(

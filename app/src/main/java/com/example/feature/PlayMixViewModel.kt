@@ -254,20 +254,38 @@ class PlayMixViewModel(
     val statusBannerMessage: StateFlow<String?> = _statusBannerMessage.asStateFlow()
 
     private var lastKnownStoragePermission = false
+    private var pendingRescanWithPermission = false
 
     init {
         libraryRepo.registerMediaStoreObserverIfNeeded()
         triggerLibraryScan(hasStoragePermission = false)
         refreshOnlineDiscoveryCatalog()
 
-        // Incremental MediaStore ContentObserver rescanning (debounced to avoid CPU spikes)
+        // Real-time auto-sync when new files are downloaded or MediaStore changes
         viewModelScope.launch {
             libraryRepo.mediaStoreChangeSignal
                 .drop(1)
-                .debounce(1500L)
+                .debounce(800L)
                 .collect {
-                    if (lastKnownStoragePermission) {
-                        triggerLibraryScan(hasStoragePermission = true, showCompletionBanner = false)
+                    triggerLibraryScan(
+                        hasStoragePermission = lastKnownStoragePermission,
+                        showCompletionBanner = false
+                    )
+                }
+        }
+
+        // Notify user when newly downloaded music files are automatically added to Music list
+        viewModelScope.launch {
+            libraryRepo.newlyAddedSongsSignal
+                .drop(1)
+                .collect { addedTitles ->
+                    if (addedTitles.isNotEmpty()) {
+                        val preview = addedTitles.first()
+                        _statusBannerMessage.value = if (addedTitles.size == 1) {
+                            "Auto-added downloaded song: \"$preview\""
+                        } else {
+                            "Auto-added ${addedTitles.size} downloaded songs (including \"$preview\")"
+                        }
                     }
                 }
         }
@@ -283,24 +301,34 @@ class PlayMixViewModel(
     }
 
     fun triggerLibraryScan(hasStoragePermission: Boolean, showCompletionBanner: Boolean = false) {
+        val upgradedPermission = hasStoragePermission && !lastKnownStoragePermission
         lastKnownStoragePermission = hasStoragePermission || lastKnownStoragePermission
-        if (_isScanning.value) return
+        if (_isScanning.value) {
+            if (hasStoragePermission || upgradedPermission) {
+                pendingRescanWithPermission = true
+            }
+            return
+        }
         viewModelScope.launch {
             _isScanning.value = true
-            runCatching {
-                val totalDiscovered = libraryRepo.rescanLibrary(hasStoragePermission)
-                if (playbackState.value.queue.isEmpty()) {
-                    val (persistedQueue, _) = libraryRepo.loadPersistedQueue()
-                    if (persistedQueue.isNotEmpty()) {
-                        playbackManager.connectToService()
+            do {
+                pendingRescanWithPermission = false
+                val effectivePerm = lastKnownStoragePermission
+                runCatching {
+                    val totalDiscovered = libraryRepo.rescanLibrary(effectivePerm)
+                    if (playbackState.value.queue.isEmpty()) {
+                        val (persistedQueue, _) = libraryRepo.loadPersistedQueue()
+                        if (persistedQueue.isNotEmpty()) {
+                            playbackManager.connectToService()
+                        }
                     }
+                    if (showCompletionBanner) {
+                        _statusBannerMessage.value = "Scanned library ($totalDiscovered audio files classified)"
+                    }
+                }.onFailure { err ->
+                    _statusBannerMessage.value = "Library scan error: ${err.localizedMessage ?: "Unknown"}"
                 }
-                if (showCompletionBanner) {
-                    _statusBannerMessage.value = "Scanned library ($totalDiscovered audio files classified)"
-                }
-            }.onFailure { err ->
-                _statusBannerMessage.value = "Library scan error: ${err.localizedMessage ?: "Unknown"}"
-            }
+            } while (pendingRescanWithPermission)
             _isScanning.value = false
         }
     }

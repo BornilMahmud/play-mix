@@ -10,6 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -267,13 +268,29 @@ fun SongRowItem(
 
     val containerColor = when {
         isSelectedInMultiSelect -> SoftCyan.copy(alpha = 0.22f)
-        isCurrentSong -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-        else -> MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.65f)
+        isCurrentSong -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.58f)
+        else -> MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)
+    }
+
+    val rowBorderBrush = when {
+        isSelectedInMultiSelect -> Brush.horizontalGradient(listOf(SoftCyan, ElectricViolet))
+        isCurrentSong -> Brush.horizontalGradient(listOf(SoftCyan.copy(alpha = 0.7f), ElectricViolet.copy(alpha = 0.7f)))
+        else -> Brush.horizontalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.07f),
+                Color.White.copy(alpha = 0.03f)
+            )
+        )
     }
 
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .border(
+                width = if (isCurrentSong || isSelectedInMultiSelect) 1.2.dp else 0.7.dp,
+                brush = rowBorderBrush,
+                shape = RoundedCornerShape(18.dp)
+            )
             .testTag("song_row_${song.id}")
             .clickable {
                 if (isMultiSelectMode && onToggleMultiSelect != null) {
@@ -282,7 +299,7 @@ fun SongRowItem(
                     onClick()
                 }
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor)
     ) {
         Row(
@@ -896,28 +913,60 @@ fun CompactMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(22.dp))
+            .border(
+                width = 1.dp,
+                brush = Brush.horizontalGradient(
+                    listOf(
+                        ElectricViolet.copy(alpha = 0.55f),
+                        SoftCyan.copy(alpha = 0.55f)
+                    )
+                ),
+                shape = RoundedCornerShape(22.dp)
+            )
             .clickable(onClick = onOpenNowPlaying)
             .testTag("compact_mini_player"),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 8.dp,
-        shadowElevation = 10.dp,
-        shape = RoundedCornerShape(20.dp)
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+        tonalElevation = 10.dp,
+        shadowElevation = 14.dp,
+        shape = RoundedCornerShape(22.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                ElectricViolet.copy(alpha = 0.14f),
+                                Color.Transparent,
+                                SoftCyan.copy(alpha = 0.08f)
+                            )
+                        )
+                    )
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AlbumArtworkBox(
-                    artworkUri = song.albumArtUri,
-                    title = song.title,
-                    modifier = Modifier.size(46.dp),
-                    cornerRadius = 12.dp,
-                    targetSizePx = 144
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    AlbumArtworkBox(
+                        artworkUri = song.albumArtUri,
+                        title = song.title,
+                        modifier = Modifier.size(48.dp),
+                        cornerRadius = 14.dp,
+                        targetSizePx = 144
+                    )
+                    if (playbackState.isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color.Black.copy(alpha = 0.45f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AnimatedPlayingIndicator(isPlaying = true)
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -926,6 +975,7 @@ fun CompactMiniPlayer(
                         Text(
                             text = song.title,
                             style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -944,7 +994,7 @@ fun CompactMiniPlayer(
                     Text(
                         text = "${song.artist} • ${formatDurationMs(playbackState.currentPositionMs)} / ${formatDurationMs(playbackState.durationMs)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = SoftCyan.copy(alpha = 0.85f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -963,8 +1013,8 @@ fun CompactMiniPlayer(
 
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(42.dp)
+                    color = SoftCyan,
+                    modifier = Modifier.size(44.dp)
                 ) {
                     IconButton(
                         onClick = onTogglePlayPause,
@@ -973,7 +1023,7 @@ fun CompactMiniPlayer(
                         Icon(
                             imageVector = if (playbackState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Play or pause",
-                            tint = Color.White
+                            tint = Color(0xFF040814)
                         )
                     }
                 }
@@ -996,7 +1046,7 @@ fun CompactMiniPlayer(
                     .fillMaxWidth()
                     .height(3.dp),
                 color = SoftCyan,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         }
     }

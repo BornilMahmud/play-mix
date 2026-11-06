@@ -16,6 +16,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,9 +25,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
@@ -33,14 +38,21 @@ import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Equalizer
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LibraryMusic
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,11 +61,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.core.ui.AddToPlaylistDialog
 import com.example.core.ui.CompactMiniPlayer
@@ -74,6 +92,7 @@ import com.example.feature.player.EqualizerAndEffectsContent
 import com.example.feature.player.NowPlayingScreen
 import com.example.feature.search.SearchScreen
 import com.example.feature.settings.SettingsScreen
+import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.LocalPlayMixStrings
 import com.example.ui.theme.PlayMixTheme
 import com.example.ui.theme.SoftCyan
@@ -122,6 +141,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val strings = LocalPlayMixStrings.current
     val prefs by viewModel.preferencesState.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
@@ -184,6 +204,11 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
         )
     }
 
+    // Play the 3D Intro Animation ONLY on the very first install (!prefs.hasCompletedThreeJsIntroOnce);
+    // on all subsequent launches it is automatically skipped.
+    val shouldShowFirstInstallIntro =
+        prefs.showThreeJsIntro && !prefs.hasCompletedThreeJsIntroOnce && !introDismissedThisSession
+
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
@@ -217,13 +242,43 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
         }
     }
 
+    // Automatically scan on startup and whenever permission is granted
     LaunchedEffect(hasAudioPermission) {
         if (hasAudioPermission) {
             if (!prefs.onboardingCompleted) {
                 viewModel.completeOnboarding(hasStoragePermission = true)
-            } else if (prefs.autoRescanOnStartup) {
+            } else {
                 viewModel.triggerLibraryScan(hasStoragePermission = true)
             }
+        }
+    }
+
+    // Automatically re-check permissions & scan for newly downloaded files whenever returning to the app
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val grantedNow = ContextCompat.checkSelfPermission(
+                    context,
+                    audioPermissionName
+                ) == PackageManager.PERMISSION_GRANTED
+                hasAudioPermission = grantedNow
+                if (grantedNow) {
+                    viewModel.triggerLibraryScan(hasStoragePermission = true, showCompletionBanner = false)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Lightweight periodic download watcher while app is foregrounded so newly downloaded files appear automatically
+    LaunchedEffect(hasAudioPermission) {
+        if (!hasAudioPermission) return@LaunchedEffect
+        while (true) {
+            delay(8_000L)
+            viewModel.triggerLibraryScan(hasStoragePermission = true, showCompletionBanner = false)
         }
     }
 
@@ -255,11 +310,11 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
             )
 
             AnimatedVisibility(
-                visible = prefs.showThreeJsIntro && !introDismissedThisSession,
+                visible = shouldShowFirstInstallIntro,
                 exit = fadeOut()
             ) {
                 ThreeJsIntroOverlay(
-                    isShortTransition = prefs.hasCompletedThreeJsIntroOnce,
+                    isShortTransition = false,
                     onIntroFinished = {
                         introDismissedThisSession = true
                         viewModel.markThreeJsIntroCompletedOnce()
@@ -279,7 +334,7 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
                         .fillMaxWidth()
                         .navigationBarsPadding()
                 ) {
-                    // Floating Compact Mini-Player
+                    // Floating Pro Max Glassmorphic Mini-Player
                     if (playbackState.currentSong != null) {
                         CompactMiniPlayer(
                             playbackState = playbackState,
@@ -292,57 +347,152 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
                         )
                     }
 
+                    // Top hairline luminous gradient divider for NavigationBar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        ElectricViolet.copy(alpha = 0.45f),
+                                        SoftCyan.copy(alpha = 0.55f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+
                     NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f),
+                        tonalElevation = 0.dp
                     ) {
+                        val navColors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = SoftCyan,
+                            selectedTextColor = SoftCyan,
+                            indicatorColor = ElectricViolet.copy(alpha = 0.24f),
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        val isHomeSelected = currentTab == MainDestination.HOME && subRoute == SubScreenRoute.None
                         NavigationBarItem(
-                            selected = currentTab == MainDestination.HOME && subRoute == SubScreenRoute.None,
+                            selected = isHomeSelected,
                             onClick = {
                                 subRoute = SubScreenRoute.None
                                 currentTab = MainDestination.HOME
                             },
-                            icon = { Icon(Icons.Default.Home, contentDescription = strings.navHome) },
-                            label = { Text(strings.navHome, maxLines = 1) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isHomeSelected) Icons.Filled.Home else Icons.Outlined.Home,
+                                    contentDescription = strings.navHome
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = strings.navHome,
+                                    maxLines = 1,
+                                    fontWeight = if (isHomeSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navColors,
                             modifier = Modifier.testTag("nav_home")
                         )
+
+                        val isLibrarySelected = currentTab == MainDestination.LIBRARY && subRoute == SubScreenRoute.None
                         NavigationBarItem(
-                            selected = currentTab == MainDestination.LIBRARY && subRoute == SubScreenRoute.None,
+                            selected = isLibrarySelected,
                             onClick = {
                                 subRoute = SubScreenRoute.None
                                 currentTab = MainDestination.LIBRARY
                             },
-                            icon = { Icon(Icons.Default.LibraryMusic, contentDescription = strings.navLibrary) },
-                            label = { Text(strings.navLibrary, maxLines = 1) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isLibrarySelected) Icons.Filled.LibraryMusic else Icons.Outlined.LibraryMusic,
+                                    contentDescription = strings.navLibrary
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = strings.navLibrary,
+                                    maxLines = 1,
+                                    fontWeight = if (isLibrarySelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navColors,
                             modifier = Modifier.testTag("nav_library")
                         )
+
+                        val isOnlineSelected = currentTab == MainDestination.ONLINE && subRoute == SubScreenRoute.None
                         NavigationBarItem(
-                            selected = currentTab == MainDestination.ONLINE && subRoute == SubScreenRoute.None,
+                            selected = isOnlineSelected,
                             onClick = {
                                 subRoute = SubScreenRoute.None
                                 currentTab = MainDestination.ONLINE
                             },
-                            icon = { Icon(Icons.Default.Cloud, contentDescription = strings.navOnline) },
-                            label = { Text(strings.navOnline, maxLines = 1) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isOnlineSelected) Icons.Filled.Cloud else Icons.Outlined.Cloud,
+                                    contentDescription = strings.navOnline
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = strings.navOnline,
+                                    maxLines = 1,
+                                    fontWeight = if (isOnlineSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navColors,
                             modifier = Modifier.testTag("nav_online")
                         )
+
+                        val isEqSelected = currentTab == MainDestination.EQUALIZER && subRoute == SubScreenRoute.None
                         NavigationBarItem(
-                            selected = currentTab == MainDestination.EQUALIZER && subRoute == SubScreenRoute.None,
+                            selected = isEqSelected,
                             onClick = {
                                 subRoute = SubScreenRoute.None
                                 currentTab = MainDestination.EQUALIZER
                             },
-                            icon = { Icon(Icons.Default.Equalizer, contentDescription = strings.navEqualizer) },
-                            label = { Text(strings.navEqualizer, maxLines = 1) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isEqSelected) Icons.Filled.Equalizer else Icons.Outlined.Equalizer,
+                                    contentDescription = strings.navEqualizer
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = strings.navEqualizer,
+                                    maxLines = 1,
+                                    fontWeight = if (isEqSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navColors,
                             modifier = Modifier.testTag("nav_equalizer")
                         )
+
+                        val isSettingsSelected = currentTab == MainDestination.SETTINGS && subRoute == SubScreenRoute.None
                         NavigationBarItem(
-                            selected = currentTab == MainDestination.SETTINGS && subRoute == SubScreenRoute.None,
+                            selected = isSettingsSelected,
                             onClick = {
                                 subRoute = SubScreenRoute.None
                                 currentTab = MainDestination.SETTINGS
                             },
-                            icon = { Icon(Icons.Default.Settings, contentDescription = strings.navSettings) },
-                            label = { Text(strings.navSettings, maxLines = 1) },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isSettingsSelected) Icons.Filled.Settings else Icons.Outlined.Settings,
+                                    contentDescription = strings.navSettings
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = strings.navSettings,
+                                    maxLines = 1,
+                                    fontWeight = if (isSettingsSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = navColors,
                             modifier = Modifier.testTag("nav_settings")
                         )
                     }
@@ -352,7 +502,7 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = innerPadding.calculateTopPadding())
+                    .padding(innerPadding)
             ) {
                 when (val activeSub = subRoute) {
                     is SubScreenRoute.Search -> {
@@ -657,13 +807,17 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
             }
         }
 
-        // Full-Screen Now Playing Overlay
+        // Full-Screen Now Playing Overlay (Wrapped in opaque Surface so background screens never bleed through)
         AnimatedVisibility(
             visible = isNowPlayingExpanded,
             enter = slideInVertically(initialOffsetY = { it }),
             exit = slideOutVertically(targetOffsetY = { it })
         ) {
-            NowPlayingScreen(
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                NowPlayingScreen(
                 playbackState = playbackState,
                 volumeState = volumeState,
                 effectsState = effectsState,
@@ -722,9 +876,10 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
                 onLoudnessChange = viewModel::setLoudnessNormalization,
                 onResetEqualizer = viewModel::resetAudioEffects
             )
+            }
         }
 
-        // Top Floating Status Toast Banner
+        // Top Floating Glassmorphic Status Toast Banner
         AnimatedVisibility(
             visible = statusBanner != null || playbackState.playbackError != null,
             modifier = Modifier
@@ -733,36 +888,48 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
                 .padding(top = 12.dp, start = 16.dp, end = 16.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 8.dp,
-                shadowElevation = 8.dp,
-                modifier = Modifier.clickable {
-                    viewModel.clearStatusBanner()
-                    viewModel.playbackManager.clearPlaybackError()
-                }
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+                tonalElevation = 10.dp,
+                shadowElevation = 12.dp,
+                modifier = Modifier
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.horizontalGradient(listOf(ElectricViolet, SoftCyan)),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .clickable {
+                        viewModel.clearStatusBanner()
+                        viewModel.playbackManager.clearPlaybackError()
+                    }
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(SoftCyan, CircleShape)
+                    )
                     Text(
                         text = playbackState.playbackError ?: statusBanner.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
                         color = SoftCyan
                     )
                 }
             }
         }
 
-        // Three.js Cinematic Intro Overlay (disposes WebGL & destroys WebView immediately on finish/skip)
+        // 3D Intro Overlay — Plays ONLY on first install (!prefs.hasCompletedThreeJsIntroOnce), skipped on all subsequent launches
         AnimatedVisibility(
-            visible = prefs.showThreeJsIntro && !introDismissedThisSession,
+            visible = shouldShowFirstInstallIntro,
             exit = fadeOut()
         ) {
             ThreeJsIntroOverlay(
-                isShortTransition = prefs.hasCompletedThreeJsIntroOnce,
+                isShortTransition = false,
                 onIntroFinished = {
                     introDismissedThisSession = true
                     viewModel.markThreeJsIntroCompletedOnce()
