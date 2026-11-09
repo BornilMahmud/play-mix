@@ -179,7 +179,8 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
     var isNowPlayingExpanded by rememberSaveable { mutableStateOf(false) }
     var songForPlaylistDialog by remember { mutableStateOf<Song?>(null) }
     var songForTagEditorDialog by remember { mutableStateOf<Song?>(null) }
-    var introDismissedThisSession by rememberSaveable { mutableStateOf(false) }
+    var hasEvaluatedInitialLaunchIntro by rememberSaveable { mutableStateOf(false) }
+    var shouldShowIntroOverlay by rememberSaveable { mutableStateOf(false) }
 
     val audioPermissionName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
@@ -204,10 +205,22 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
         )
     }
 
-    // Play the 3D Intro Animation ONLY on the very first install (!prefs.hasCompletedThreeJsIntroOnce);
-    // on all subsequent launches it is automatically skipped.
-    val shouldShowFirstInstallIntro =
-        prefs.showThreeJsIntro && !prefs.hasCompletedThreeJsIntroOnce && !introDismissedThisSession
+    // Evaluate intro playback conditions as soon as persisted preferences finish loading:
+    // 1. First-time install (!prefs.hasCompletedThreeJsIntroOnce) -> Play 1 time
+    // 2. App not opened for 7 straight days (elapsed >= 7 days) -> Play 1 time
+    // 3. Otherwise -> Skip intro and update lastAppOpenTimestampMs to reset the 7-day countdown
+    LaunchedEffect(prefs.isLoadedFromDisk) {
+        if (prefs.isLoadedFromDisk && !hasEvaluatedInitialLaunchIntro) {
+            hasEvaluatedInitialLaunchIntro = true
+            val nowMs = System.currentTimeMillis()
+            if (prefs.shouldPlayIntroAtLaunch(nowMs)) {
+                shouldShowIntroOverlay = true
+            } else {
+                shouldShowIntroOverlay = false
+                viewModel.recordAppOpenTimestamp(nowMs)
+            }
+        }
+    }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -253,8 +266,8 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
         }
     }
 
-    // Automatically re-check permissions & scan for newly downloaded files whenever returning to the app
-    DisposableEffect(lifecycleOwner) {
+    // Automatically re-check permissions, scan for newly downloaded files, and enforce 7-day inactivity rule on resume
+    DisposableEffect(lifecycleOwner, prefs.isLoadedFromDisk) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val grantedNow = ContextCompat.checkSelfPermission(
@@ -264,6 +277,14 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
                 hasAudioPermission = grantedNow
                 if (grantedNow) {
                     viewModel.triggerLibraryScan(hasStoragePermission = true, showCompletionBanner = false)
+                }
+                if (prefs.isLoadedFromDisk && hasEvaluatedInitialLaunchIntro && !shouldShowIntroOverlay) {
+                    val nowMs = System.currentTimeMillis()
+                    if (prefs.shouldPlayIntroAtLaunch(nowMs)) {
+                        shouldShowIntroOverlay = true
+                    } else {
+                        viewModel.recordAppOpenTimestamp(nowMs)
+                    }
                 }
             }
         }
@@ -310,14 +331,14 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
             )
 
             AnimatedVisibility(
-                visible = shouldShowFirstInstallIntro,
+                visible = shouldShowIntroOverlay,
                 exit = fadeOut()
             ) {
                 ThreeJsIntroOverlay(
                     isShortTransition = false,
                     onIntroFinished = {
-                        introDismissedThisSession = true
-                        viewModel.markThreeJsIntroCompletedOnce()
+                        shouldShowIntroOverlay = false
+                        viewModel.markThreeJsIntroCompletedOnce(System.currentTimeMillis())
                     }
                 )
             }
@@ -928,16 +949,16 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
             }
         }
 
-        // 3D Intro Overlay — Plays ONLY on first install (!prefs.hasCompletedThreeJsIntroOnce), skipped on all subsequent launches
+        // Non-skippable Intro Video Overlay — Plays 1 time on first install OR after 7 straight days of not opening Play Mix
         AnimatedVisibility(
-            visible = shouldShowFirstInstallIntro,
+            visible = shouldShowIntroOverlay,
             exit = fadeOut()
         ) {
             ThreeJsIntroOverlay(
                 isShortTransition = false,
                 onIntroFinished = {
-                    introDismissedThisSession = true
-                    viewModel.markThreeJsIntroCompletedOnce()
+                    shouldShowIntroOverlay = false
+                    viewModel.markThreeJsIntroCompletedOnce(System.currentTimeMillis())
                 }
             )
         }

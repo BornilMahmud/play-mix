@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -86,12 +87,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.R
 import com.example.domain.model.AudioCategory
 import com.example.domain.model.Playlist
 import com.example.domain.model.Song
@@ -127,26 +130,12 @@ fun AlbumArtworkBox(
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Stylized vinyl grooves fallback
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val maxR = size.minDimension * 0.42f
-            drawCircle(
-                color = Color.Black.copy(alpha = 0.28f),
-                radius = maxR,
-                center = center
-            )
-            drawCircle(
-                color = SoftCyan.copy(alpha = 0.35f),
-                radius = maxR * 0.45f,
-                center = center
-            )
-        }
-        Icon(
-            imageVector = Icons.Default.MusicNote,
+        // Official Play Mix Logo fallback artwork
+        Image(
+            painter = painterResource(id = R.drawable.img_play_mix_logo),
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.85f),
-            modifier = Modifier.size(26.dp)
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
         )
         if (!artworkUri.isNullOrBlank()) {
             val request = remember(artworkUri, targetSizePx) {

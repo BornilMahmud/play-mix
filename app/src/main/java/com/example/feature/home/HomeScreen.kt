@@ -1,6 +1,7 @@
 package com.example.feature.home
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,11 +56,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.core.ui.AlbumArtworkBox
 import com.example.core.ui.SongRowItem
 import com.example.domain.model.Album
@@ -164,32 +168,51 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .background(SuccessEmerald, CircleShape)
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_play_mix_logo),
+                        contentDescription = "Play Mix Logo",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(listOf(ElectricViolet, SoftCyan)),
+                                shape = RoundedCornerShape(14.dp)
+                            )
+                            .testTag("home_brand_logo")
+                    )
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .background(SuccessEmerald, CircleShape)
+                            )
+                            Text(
+                                text = greeting.uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    letterSpacing = 1.8.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = SoftCyan
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = greeting.uppercase(),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                letterSpacing = 1.8.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = SoftCyan
+                            text = "Play Mix",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Play Mix",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
                 }
 
                 // Glassmorphic Action Pill Cluster

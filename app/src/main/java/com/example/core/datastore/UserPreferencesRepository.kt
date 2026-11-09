@@ -30,6 +30,7 @@ private val Context.playMixDataStore: DataStore<Preferences> by preferencesDataS
 )
 
 data class UserPreferences(
+    val isLoadedFromDisk: Boolean = false,
     val themeMode: PlayMixThemeMode = PlayMixThemeMode.AMOLED_BLACK,
     val dynamicColor: Boolean = false,
     val accentColor: AccentColorOption = AccentColorOption.ELECTRIC_VIOLET,
@@ -37,6 +38,7 @@ data class UserPreferences(
     val onboardingCompleted: Boolean = false,
     val showThreeJsIntro: Boolean = true,
     val hasCompletedThreeJsIntroOnce: Boolean = false,
+    val lastAppOpenTimestampMs: Long = 0L,
     val sortOption: SortOption = SortOption.TITLE_ASC,
     val groupByAlbumArtist: Boolean = true,
     val shuffleEnabled: Boolean = false,
@@ -85,6 +87,29 @@ data class UserPreferences(
                     if (levels.size == 5) CustomEqualizerPreset(parts[0], levels) else null
                 } else null
             }
+
+    /**
+     * Evaluates the strict non-skippable intro playback rules:
+     * 1. First-time install: Plays 1 time when the application is installed and opened for the first time
+     *    (`!hasCompletedThreeJsIntroOnce`).
+     * 2. 7-day straight inactivity: Plays 1 time if the application has NOT been opened for 7 consecutive
+     *    days (`nowEpochMs - lastAppOpenTimestampMs >= SEVEN_DAYS_INACTIVITY_MS`).
+     * Otherwise returns `false` (must wait 7 straight days without opening the app or reinstall to view again).
+     */
+    fun shouldPlayIntroAtLaunch(nowEpochMs: Long): Boolean {
+        if (!hasCompletedThreeJsIntroOnce) {
+            return true
+        }
+        if (lastAppOpenTimestampMs <= 0L) {
+            return false
+        }
+        val inactiveDurationMs = nowEpochMs - lastAppOpenTimestampMs
+        return inactiveDurationMs >= SEVEN_DAYS_INACTIVITY_MS
+    }
+
+    companion object {
+        const val SEVEN_DAYS_INACTIVITY_MS: Long = 7L * 24L * 60L * 60L * 1000L // 604,800,000 ms (7 straight days)
+    }
 }
 
 class UserPreferencesRepository(private val context: Context) {
@@ -97,6 +122,7 @@ class UserPreferencesRepository(private val context: Context) {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val SHOW_THREE_JS_INTRO = booleanPreferencesKey("show_three_js_intro")
         val HAS_COMPLETED_THREE_JS_INTRO_ONCE = booleanPreferencesKey("has_completed_three_js_intro_once")
+        val LAST_APP_OPEN_TIMESTAMP_MS = longPreferencesKey("last_app_open_timestamp_ms")
         val SORT_OPTION = stringPreferencesKey("sort_option")
         val GROUP_BY_ALBUM_ARTIST = booleanPreferencesKey("group_by_album_artist")
         val SHUFFLE_ENABLED = booleanPreferencesKey("shuffle_enabled")
@@ -181,6 +207,7 @@ class UserPreferencesRepository(private val context: Context) {
                 ?: listOf(0, 0, 0, 0, 0)
 
             UserPreferences(
+                isLoadedFromDisk = true,
                 themeMode = themeMode,
                 dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false,
                 accentColor = accent,
@@ -188,6 +215,7 @@ class UserPreferencesRepository(private val context: Context) {
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
                 showThreeJsIntro = prefs[Keys.SHOW_THREE_JS_INTRO] ?: true,
                 hasCompletedThreeJsIntroOnce = prefs[Keys.HAS_COMPLETED_THREE_JS_INTRO_ONCE] ?: false,
+                lastAppOpenTimestampMs = prefs[Keys.LAST_APP_OPEN_TIMESTAMP_MS] ?: 0L,
                 sortOption = sortOption,
                 groupByAlbumArtist = prefs[Keys.GROUP_BY_ALBUM_ARTIST] ?: true,
                 shuffleEnabled = prefs[Keys.SHUFFLE_ENABLED] ?: false,
@@ -256,8 +284,31 @@ class UserPreferencesRepository(private val context: Context) {
         context.playMixDataStore.edit { it[Keys.SHOW_THREE_JS_INTRO] = enabled }
     }
 
-    suspend fun markThreeJsIntroCompletedOnce() {
-        context.playMixDataStore.edit { it[Keys.HAS_COMPLETED_THREE_JS_INTRO_ONCE] = true }
+    suspend fun markThreeJsIntroCompletedOnce(completedAtEpochMs: Long = System.currentTimeMillis()) {
+        context.playMixDataStore.edit {
+            it[Keys.HAS_COMPLETED_THREE_JS_INTRO_ONCE] = true
+            it[Keys.LAST_APP_OPEN_TIMESTAMP_MS] = completedAtEpochMs
+        }
+    }
+
+    suspend fun recordAppOpenTimestamp(openedAtEpochMs: Long = System.currentTimeMillis()) {
+        context.playMixDataStore.edit {
+            it[Keys.LAST_APP_OPEN_TIMESTAMP_MS] = openedAtEpochMs
+        }
+    }
+
+    /**
+     * Evaluates whether the non-skippable intro video should play at launch (`nowEpochMs`):
+     * - Returns `true` on first install (`!hasCompletedThreeJsIntroOnce`) or if `nowEpochMs - lastAppOpenTimestampMs >= 7 days`.
+     * - If `false`, immediately updates `lastAppOpenTimestampMs = nowEpochMs` so the 7-day straight inactivity window resets.
+     */
+    suspend fun evaluateIntroAndRecordAppLaunch(nowEpochMs: Long = System.currentTimeMillis()): Boolean {
+        val snapshot = getSnapshot()
+        val shouldPlay = snapshot.shouldPlayIntroAtLaunch(nowEpochMs)
+        if (!shouldPlay) {
+            recordAppOpenTimestamp(nowEpochMs)
+        }
+        return shouldPlay
     }
 
     suspend fun setSortOption(option: SortOption) {

@@ -254,12 +254,28 @@ fun SettingsScreen(
                     onCheckedChange = onToggleDynamicColor
                 )
 
-                SettingsToggleRow(
-                    title = "Three.js 3D Intro Animation on Startup",
-                    subtitle = "Show lightweight WebGL 3D audio sphere & sound-wave intro (auto-disposes after launch)",
-                    checked = preferences.showThreeJsIntro,
-                    onCheckedChange = onToggleThreeJsIntro
-                )
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Non-Skippable Play Mix Intro Video",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SoftCyan
+                        )
+                        Text(
+                            text = "Plays 1 time on first install, and 1 time if Play Mix is not opened for 7 straight days. Opening the app resets the 7-day inactivity timer.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
 
                 SettingsToggleRow(
                     title = "Animated Spinning Vinyl Player",

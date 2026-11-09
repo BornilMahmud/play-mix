@@ -1,7 +1,9 @@
 package com.example.feature.onboarding
 
 import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -44,10 +45,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.DeepBlue
+import com.example.R
 import com.example.ui.theme.ElectricViolet
 import com.example.ui.theme.SoftCyan
 import com.example.ui.theme.SuccessEmerald
@@ -111,25 +114,21 @@ fun OnboardingScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Brand Emblem
-            Box(
+            // Official Play Mix Brand Logo
+            Image(
+                painter = painterResource(id = R.drawable.img_play_mix_logo),
+                contentDescription = "Play Mix Emblem",
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(76.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(ElectricViolet, DeepBlue, SoftCyan)
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Equalizer,
-                    contentDescription = "Play Mix Emblem",
-                    tint = Color.White,
-                    modifier = Modifier.size(42.dp)
-                )
-            }
+                    .size(92.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.linearGradient(listOf(ElectricViolet, SoftCyan)),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .testTag("onboarding_brand_logo")
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 

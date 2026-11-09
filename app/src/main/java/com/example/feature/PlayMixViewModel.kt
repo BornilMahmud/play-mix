@@ -417,9 +417,15 @@ class PlayMixViewModel(
         }
     }
 
-    fun markThreeJsIntroCompletedOnce() {
+    fun markThreeJsIntroCompletedOnce(completedAtEpochMs: Long = System.currentTimeMillis()) {
         viewModelScope.launch {
-            prefsRepo.markThreeJsIntroCompletedOnce()
+            prefsRepo.markThreeJsIntroCompletedOnce(completedAtEpochMs)
+        }
+    }
+
+    fun recordAppOpenTimestamp(openedAtEpochMs: Long = System.currentTimeMillis()) {
+        viewModelScope.launch {
+            prefsRepo.recordAppOpenTimestamp(openedAtEpochMs)
         }
     }
 

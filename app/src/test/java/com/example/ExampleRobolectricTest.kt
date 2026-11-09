@@ -486,4 +486,74 @@ class ExampleRobolectricTest {
         }
         assertTrue("All 6 formats (mp3, flac, m4a, aac, ogg, wav) must be supported", allSupported)
     }
+
+    @Test
+    fun `non-skippable intro plays on first install and only after 7 straight days of not opening the app`() = runBlocking {
+        val dayMs = 24L * 60L * 60L * 1000L
+        val sevenDaysMs = 7L * dayMs
+        val t0 = 1_700_000_000_000L
+
+        // Verify bundled video and logo resources exist
+        assertTrue("Bundled intro video resource must exist", R.raw.play_mix_intro != 0)
+        assertTrue("Bundled Play Mix logo resource must exist", R.drawable.img_play_mix_logo != 0)
+
+        // 1. First-time install: hasCompletedThreeJsIntroOnce is false -> MUST play
+        val initialPrefs = prefsRepository.preferencesFlow.first()
+        assertFalse(initialPrefs.hasCompletedThreeJsIntroOnce)
+        assertTrue(
+            "Intro must play on first time install",
+            initialPrefs.shouldPlayIntroAtLaunch(t0)
+        )
+
+        // Mark first-time intro completed at t0
+        prefsRepository.markThreeJsIntroCompletedOnce(completedAtEpochMs = t0)
+        val afterFirstIntro = prefsRepository.preferencesFlow.first()
+        assertTrue(afterFirstIntro.hasCompletedThreeJsIntroOnce)
+        assertEquals(t0, afterFirstIntro.lastAppOpenTimestampMs)
+
+        // 2. Open app 2 days later (t0 + 2 days) -> MUST NOT play, and resets the 7-day inactivity timer
+        val tDay2 = t0 + (2L * dayMs)
+        assertFalse(
+            "Intro must NOT play when opened after only 2 days",
+            afterFirstIntro.shouldPlayIntroAtLaunch(tDay2)
+        )
+        val shouldPlayDay2 = prefsRepository.evaluateIntroAndRecordAppLaunch(tDay2)
+        assertFalse(shouldPlayDay2)
+
+        // 3. Open app 6 days after t0 (which is only 4 days after tDay2) -> MUST NOT play because user opened on Day 2!
+        val tDay6FromInstall = t0 + (6L * dayMs)
+        val shouldPlayDay6 = prefsRepository.evaluateIntroAndRecordAppLaunch(tDay6FromInstall)
+        assertFalse(
+            "Opening the app resets the 7-day straight inactivity window; 4 days since last open must NOT play intro",
+            shouldPlayDay6
+        )
+
+        //Even at t0 + 8 days (which is only 2 days after tDay6FromInstall), it MUST NOT play because it wasn't 7 straight days
+        val tDay8FromInstall = t0 + (8L * dayMs)
+        val prefsAfterDay6 = prefsRepository.preferencesFlow.first()
+        assertFalse(
+            "Must wait 7 straight days without opening the app since the last open",
+            prefsAfterDay6.shouldPlayIntroAtLaunch(tDay8FromInstall)
+        )
+
+        // 4. Now do NOT open the app for 7 straight days after tDay6FromInstall -> MUST play 1 time!
+        val tAfterSevenStraightDays = tDay6FromInstall + sevenDaysMs
+        val prefsBefore7DayCheck = prefsRepository.preferencesFlow.first()
+        assertTrue(
+            "Intro MUST play 1 time after 7 straight days without opening the app",
+            prefsBefore7DayCheck.shouldPlayIntroAtLaunch(tAfterSevenStraightDays)
+        )
+
+        // Complete the 7-day intro at tAfterSevenStraightDays
+        prefsRepository.markThreeJsIntroCompletedOnce(completedAtEpochMs = tAfterSevenStraightDays)
+
+        // 5. Immediately opening again 1 hour later -> MUST NOT play (must wait another 7 straight days or reinstall)
+        val oneHourLater = tAfterSevenStraightDays + (60L * 60L * 1000L)
+        val prefsAfterSecondPlay = prefsRepository.preferencesFlow.first()
+        assertFalse(
+            "After playing once, intro must NOT play again until another 7 straight days of inactivity",
+            prefsAfterSecondPlay.shouldPlayIntroAtLaunch(oneHourLater)
+        )
+    }
 }
+
