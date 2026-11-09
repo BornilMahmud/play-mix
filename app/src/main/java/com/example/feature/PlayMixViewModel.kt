@@ -63,7 +63,9 @@ data class OnlineLyricsSearchState(
 
 data class LibraryDiagnosticsReport(
     val duplicateTracks: List<Song> = emptyList(),
-    val missingFileTracks: List<Song> = emptyList()
+    val missingFileTracks: List<Song> = emptyList(),
+    val artworkCoversCount: Int = 0,
+    val songsWithArtworkCount: Int = 0
 )
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -553,11 +555,16 @@ class PlayMixViewModel(
         viewModelScope.launch {
             val dups = libraryRepo.findDuplicateTracks()
             val missing = libraryRepo.findMissingFileTracks()
+            val allSongs = songsState.value
+            val withArt = allSongs.count { !it.albumArtUri.isNullOrBlank() }
+            val stats = libraryRepo.getArtworkCacheStats()
             _diagnosticsReport.value = LibraryDiagnosticsReport(
                 duplicateTracks = dups,
-                missingFileTracks = missing
+                missingFileTracks = missing,
+                artworkCoversCount = stats.cachedFilesCount,
+                songsWithArtworkCount = withArt
             )
-            _statusBannerMessage.value = "Diagnostics: ${dups.size} duplicates, ${missing.size} missing files"
+            _statusBannerMessage.value = "Artwork: $withArt/${allSongs.size} tracks with art (${stats.cachedFilesCount} cached). Duplicates: ${dups.size}, Missing: ${missing.size}"
         }
     }
 

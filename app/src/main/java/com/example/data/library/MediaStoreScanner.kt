@@ -14,7 +14,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class MediaStoreScanner(private val context: Context) {
+class MediaStoreScanner(
+    private val context: Context,
+    val artworkDetector: OfflineArtworkDetector = OfflineArtworkDetector(context)
+) {
 
     private val supportedExtensions = setOf(
         "mp3", "flac", "wav", "m4a", "m4b", "aac", "ogg", "opus", "oga", "weba", "amr", "3gp"
@@ -22,7 +25,8 @@ class MediaStoreScanner(private val context: Context) {
 
     suspend fun scanDeviceMediaStore(
         minDurationSec: Int,
-        excludedFolders: Set<String>
+        excludedFolders: Set<String>,
+        existingSongs: Map<String, SongEntity> = emptyMap()
     ): List<SongEntity> = withContext(Dispatchers.IO) {
         // First trigger MediaScanner on any newly downloaded audio files in public directories
         val unindexedFiles = findPublicDirectoryAudioFiles(excludedFolders)
@@ -207,9 +211,18 @@ class MediaStoreScanner(private val context: Context) {
                         )
                     )
 
-                    val artworkUri = if (albumId > 0) {
-                        ContentUris.withAppendedId(albumArtBaseUri, albumId).toString()
-                    } else null
+                    val songId = "ms_$mediaId"
+                    val existing = existingSongs[songId]
+                    val targetLocalFile = if (filePath.isNotBlank()) File(filePath) else File("")
+                    val artworkUri = artworkDetector.detectArtworkForLocalFile(
+                        file = targetLocalFile,
+                        songId = songId,
+                        contentUri = contentUriObj,
+                        albumId = albumId,
+                        existingArtworkUri = existing?.albumArtUri,
+                        existingFileSize = existing?.fileSize ?: 0L,
+                        existingDateAdded = existing?.dateAdded ?: 0L
+                    )
 
                     if (filePath.isNotBlank()) {
                         seenPaths.add(filePath)
@@ -217,7 +230,7 @@ class MediaStoreScanner(private val context: Context) {
 
                     discovered.add(
                         SongEntity(
-                            id = "ms_$mediaId",
+                            id = songId,
                             mediaStoreId = mediaId,
                             uri = contentUri,
                             title = rawTitle,
@@ -249,7 +262,9 @@ class MediaStoreScanner(private val context: Context) {
         // for newly downloaded files not yet committed to Android MediaStore DB
         for (file in unindexedFiles) {
             if (file.absolutePath in seenPaths) continue
-            val directEntity = extractDirectFileMetadata(file, minDurationMs)
+            val songId = "file_${file.absolutePath.hashCode().toUInt()}"
+            val existing = existingSongs[songId]
+            val directEntity = extractDirectFileMetadata(file, minDurationMs, existing)
             if (directEntity != null) {
                 seenPaths.add(file.absolutePath)
                 discovered.add(directEntity)
@@ -321,9 +336,10 @@ class MediaStoreScanner(private val context: Context) {
         }
     }
 
-    private fun extractDirectFileMetadata(
+    private suspend fun extractDirectFileMetadata(
         file: File,
-        minDurationMs: Long
+        minDurationMs: Long,
+        existingSong: SongEntity? = null
     ): SongEntity? {
         val retriever = MediaMetadataRetriever()
         return try {
@@ -366,8 +382,19 @@ class MediaStoreScanner(private val context: Context) {
                 )
             )
 
+            val songId = "file_${file.absolutePath.hashCode().toUInt()}"
+            val artworkUri = artworkDetector.detectArtworkForLocalFile(
+                file = file,
+                songId = songId,
+                contentUri = Uri.fromFile(file),
+                albumId = 0L,
+                existingArtworkUri = existingSong?.albumArtUri,
+                existingFileSize = existingSong?.fileSize ?: 0L,
+                existingDateAdded = existingSong?.dateAdded ?: 0L
+            )
+
             SongEntity(
-                id = "file_${file.absolutePath.hashCode().toUInt()}",
+                id = songId,
                 mediaStoreId = 0L,
                 uri = Uri.fromFile(file).toString(),
                 title = title,
@@ -378,7 +405,7 @@ class MediaStoreScanner(private val context: Context) {
                 durationMs = durationMs,
                 trackNumber = trackNumber,
                 year = year,
-                albumArtUri = null,
+                albumArtUri = artworkUri,
                 filePath = file.absolutePath,
                 folderName = folderName,
                 fileSize = file.length(),
@@ -399,14 +426,15 @@ class MediaStoreScanner(private val context: Context) {
 
     suspend fun scanSafTreeFolder(
         treeUriString: String,
-        minDurationSec: Int
+        minDurationSec: Int,
+        existingSongs: Map<String, SongEntity> = emptyMap()
     ): List<SongEntity> = withContext(Dispatchers.IO) {
         val discovered = mutableListOf<SongEntity>()
         val treeUri = runCatching { Uri.parse(treeUriString) }.getOrNull() ?: return@withContext emptyList()
         val rootDoc = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext emptyList()
         val rootFolderName = rootDoc.name ?: "SAF Folder"
 
-        fun traverse(directory: DocumentFile, folderLabel: String) {
+        suspend fun traverse(directory: DocumentFile, folderLabel: String) {
             for (file in directory.listFiles()) {
                 if (file.isDirectory) {
                     traverse(file, file.name ?: folderLabel)
@@ -415,10 +443,14 @@ class MediaStoreScanner(private val context: Context) {
                     val ext = name.substringAfterLast('.', "").lowercase()
                     val mime = file.type ?: ""
                     if (ext in supportedExtensions || mime.startsWith("audio/")) {
+                        val songId = "saf_${file.uri.toString().hashCode().toUInt()}"
+                        val existing = existingSongs[songId]
                         val song = extractSafSongMetadata(
                             file = file,
+                            parentDoc = directory,
                             folderName = folderLabel,
-                            minDurationMs = minDurationSec * 1000L
+                            minDurationMs = minDurationSec * 1000L,
+                            existingSong = existing
                         )
                         if (song != null) {
                             discovered.add(song)
@@ -432,10 +464,12 @@ class MediaStoreScanner(private val context: Context) {
         discovered
     }
 
-    private fun extractSafSongMetadata(
+    private suspend fun extractSafSongMetadata(
         file: DocumentFile,
+        parentDoc: DocumentFile?,
         folderName: String,
-        minDurationMs: Long
+        minDurationMs: Long,
+        existingSong: SongEntity? = null
     ): SongEntity? {
         val uri = file.uri
         val retriever = MediaMetadataRetriever()
@@ -480,8 +514,17 @@ class MediaStoreScanner(private val context: Context) {
                 )
             )
 
+            val songId = "saf_${uri.toString().hashCode().toUInt()}"
+            val artworkUri = artworkDetector.detectArtworkForSafDocument(
+                file = file,
+                parentDoc = parentDoc,
+                songId = songId,
+                existingArtworkUri = existingSong?.albumArtUri,
+                existingFileSize = existingSong?.fileSize ?: 0L
+            )
+
             SongEntity(
-                id = "saf_${uri.toString().hashCode().toUInt()}",
+                id = songId,
                 mediaStoreId = 0L,
                 uri = uri.toString(),
                 title = title,
@@ -492,7 +535,7 @@ class MediaStoreScanner(private val context: Context) {
                 durationMs = durationMs,
                 trackNumber = trackNumber,
                 year = year,
-                albumArtUri = null,
+                albumArtUri = artworkUri,
                 filePath = pathStr,
                 folderName = folderName,
                 fileSize = file.length(),

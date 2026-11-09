@@ -10,6 +10,7 @@ import com.example.core.database.PlayMixDatabase
 import com.example.core.datastore.UserPreferencesRepository
 import com.example.data.library.MediaStoreScanner
 import com.example.data.library.MusicLibraryRepository
+import com.example.data.library.OfflineArtworkDetector
 import com.example.data.lyrics.LyricsRepository
 import com.example.data.online.OnlineMusicRepository
 import com.example.playback.controller.AudioEffectsController
@@ -27,8 +28,12 @@ class PlayMixAppContainer(context: Context) {
         UserPreferencesRepository(appContext)
     }
 
+    val offlineArtworkDetector: OfflineArtworkDetector by lazy {
+        OfflineArtworkDetector(appContext)
+    }
+
     val mediaStoreScanner: MediaStoreScanner by lazy {
-        MediaStoreScanner(appContext)
+        MediaStoreScanner(appContext, offlineArtworkDetector)
     }
 
     val libraryRepository: MusicLibraryRepository by lazy {
@@ -36,7 +41,8 @@ class PlayMixAppContainer(context: Context) {
             context = appContext,
             dao = database.playMixDao(),
             scanner = mediaStoreScanner,
-            prefsRepo = preferencesRepository
+            prefsRepo = preferencesRepository,
+            artworkDetector = offlineArtworkDetector
         )
     }
 

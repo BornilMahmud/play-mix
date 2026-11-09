@@ -437,9 +437,9 @@ fun SettingsScreen(
                     }
                 }
 
-                if (diagnosticsReport.duplicateTracks.isNotEmpty() || diagnosticsReport.missingFileTracks.isNotEmpty()) {
+                if (diagnosticsReport.duplicateTracks.isNotEmpty() || diagnosticsReport.missingFileTracks.isNotEmpty() || diagnosticsReport.songsWithArtworkCount > 0) {
                     Text(
-                        text = "Found ${diagnosticsReport.duplicateTracks.size} duplicate track(s) and ${diagnosticsReport.missingFileTracks.size} missing file entry(s).",
+                        text = "Artwork: ${diagnosticsReport.songsWithArtworkCount} track(s) have artwork (${diagnosticsReport.artworkCoversCount} cached offline). Found ${diagnosticsReport.duplicateTracks.size} duplicate(s) and ${diagnosticsReport.missingFileTracks.size} missing file(s).",
                         style = MaterialTheme.typography.bodySmall,
                         color = SoftCyan
                     )

@@ -52,7 +52,8 @@ class MusicLibraryRepository(
     private val context: Context,
     private val dao: PlayMixDao,
     private val scanner: MediaStoreScanner,
-    private val prefsRepo: UserPreferencesRepository
+    private val prefsRepo: UserPreferencesRepository,
+    val artworkDetector: OfflineArtworkDetector = scanner.artworkDetector
 ) {
 
     private val _mediaStoreChangeSignal = MutableStateFlow(0L)
@@ -381,7 +382,8 @@ class MusicLibraryRepository(
         val mediaStoreSongs = if (hasStoragePermission) {
             scanner.scanDeviceMediaStore(
                 minDurationSec = prefs.minScanDurationSec,
-                excludedFolders = excludedSet
+                excludedFolders = excludedSet,
+                existingSongs = existingMap
             )
         } else {
             emptyList()
@@ -391,7 +393,8 @@ class MusicLibraryRepository(
         val safSongs = safFolders.flatMap { folder ->
             scanner.scanSafTreeFolder(
                 treeUriString = folder.treeUri,
-                minDurationSec = prefs.minScanDurationSec
+                minDurationSec = prefs.minScanDurationSec,
+                existingSongs = existingMap
             )
         }
 
@@ -610,6 +613,17 @@ class MusicLibraryRepository(
         customArtworkUri: String?
     ) = withContext(Dispatchers.IO) {
         val existing = dao.getSongById(songId) ?: return@withContext
+        val finalArtworkUri = if (!customArtworkUri.isNullOrBlank()) {
+            if (customArtworkUri != existing.albumArtUri) {
+                val parsedUri = Uri.parse(customArtworkUri)
+                artworkDetector.saveCustomArtwork(songId, parsedUri) ?: customArtworkUri
+            } else {
+                existing.albumArtUri
+            }
+        } else {
+            existing.albumArtUri
+        }
+
         val updated = existing.copy(
             title = title.trim().ifBlank { existing.title },
             artist = artist.trim().ifBlank { existing.artist },
@@ -620,10 +634,12 @@ class MusicLibraryRepository(
             trackNumber = trackNumber.coerceAtLeast(1),
             rating = rating.coerceIn(0, 5),
             isCompilation = isCompilation,
-            albumArtUri = customArtworkUri?.takeIf { it.isNotBlank() } ?: existing.albumArtUri
+            albumArtUri = finalArtworkUri
         )
         dao.upsertSong(updated)
     }
+
+    fun getArtworkCacheStats(): ArtworkCacheStats = artworkDetector.getCacheStats()
 
     suspend fun bulkUpdateSongsMetadata(
         songIds: Set<String>,

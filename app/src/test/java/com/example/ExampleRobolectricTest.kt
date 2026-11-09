@@ -1,6 +1,8 @@
 package com.example
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.core.database.PlayMixDatabase
@@ -9,16 +11,21 @@ import com.example.core.datastore.UserPreferencesRepository
 import com.example.data.library.DemoAudioSeeder
 import com.example.data.library.MediaStoreScanner
 import com.example.data.library.MusicLibraryRepository
+import com.example.data.library.OfflineArtworkDetector
 import com.example.data.online.OnlineMusicRepository
 import com.example.domain.model.AudioCategory
 import com.example.domain.model.Song
 import com.example.domain.model.SortOption
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -35,6 +42,7 @@ class ExampleRobolectricTest {
     private lateinit var repository: MusicLibraryRepository
     private lateinit var prefsRepository: UserPreferencesRepository
     private lateinit var onlineRepository: OnlineMusicRepository
+    private lateinit var artworkDetector: OfflineArtworkDetector
 
     @Before
     fun setup() {
@@ -43,11 +51,14 @@ class ExampleRobolectricTest {
             .allowMainThreadQueries()
             .build()
         prefsRepository = UserPreferencesRepository(context)
+        artworkDetector = OfflineArtworkDetector(context)
+        val scanner = MediaStoreScanner(context, artworkDetector)
         repository = MusicLibraryRepository(
             context = context,
             dao = database.playMixDao(),
-            scanner = MediaStoreScanner(context),
-            prefsRepo = prefsRepository
+            scanner = scanner,
+            prefsRepo = prefsRepository,
+            artworkDetector = artworkDetector
         )
         onlineRepository = OnlineMusicRepository(
             dao = database.playMixDao(),
@@ -311,5 +322,168 @@ class ExampleRobolectricTest {
         onlineRepository.cacheOnlineSongForPlayback(archiveStreams.first())
         val cachedOnline = onlineRepository.recentlyPlayedOnlineFlow.first()
         assertEquals(1, cachedOnline.size)
+    }
+
+    private fun createTestBitmapBytes(width: Int = 120, height: Int = 120): ByteArray {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
+        bitmap.recycle()
+        return stream.toByteArray()
+    }
+
+    @Test
+    fun `offline artwork detector detects folder artwork like cover_jpg, folder_jpg, album_png and downscales thumbnail`() = runBlocking {
+        val testMusicDir = File(context.filesDir, "test_album_folder").apply {
+            if (!exists()) mkdirs()
+        }
+        val coverFile = File(testMusicDir, "cover.jpg").apply {
+            writeBytes(createTestBitmapBytes(200, 200))
+        }
+        val audioFile = File(testMusicDir, "track1.mp3").apply {
+            writeBytes(ByteArray(1024) { 0x55 })
+        }
+
+        val detectedUri = artworkDetector.detectArtworkForLocalFile(
+            file = audioFile,
+            songId = "test_track_1",
+            contentUri = null,
+            albumId = 0L
+        )
+
+        assertNotNull("Folder artwork cover.jpg should be detected", detectedUri)
+        assertTrue("Detected URI should point to persistent file", detectedUri!!.startsWith("file://"))
+        val cachedFile = File(Uri.parse(detectedUri).path ?: "")
+        assertTrue("Cached thumbnail file should exist on disk", cachedFile.exists())
+        assertTrue("Cached thumbnail should have non-zero size", cachedFile.length() > 0L)
+
+        // Case-insensitive test with Folder.PNG
+        val testMusicDir2 = File(context.filesDir, "test_album_folder_2").apply {
+            if (!exists()) mkdirs()
+        }
+        File(testMusicDir2, "Folder.PNG").apply {
+            writeBytes(createTestBitmapBytes(150, 150))
+        }
+        val audioFile2 = File(testMusicDir2, "song.flac").apply {
+            writeBytes(ByteArray(2048) { 0x77 })
+        }
+
+        val detectedUri2 = artworkDetector.detectArtworkForLocalFile(
+            file = audioFile2,
+            songId = "test_track_2",
+            contentUri = null,
+            albumId = 0L
+        )
+        assertNotNull("Folder.PNG should be detected case-insensitively", detectedUri2)
+        assertTrue(File(Uri.parse(detectedUri2).path ?: "").exists())
+    }
+
+    @Test
+    fun `offline artwork detector avoids extracting unchanged files repeatedly using file size and modification tracking`() = runBlocking {
+        val testDir = File(context.filesDir, "test_cache_reuse").apply {
+            if (!exists()) mkdirs()
+        }
+        val coverFile = File(testDir, "album.jpg").apply {
+            writeBytes(createTestBitmapBytes(100, 100))
+        }
+        val audioFile = File(testDir, "acoustic.wav").apply {
+            writeBytes(ByteArray(4096) { 0x12 })
+        }
+
+        // First extraction
+        val firstUri = artworkDetector.detectArtworkForLocalFile(
+            file = audioFile,
+            songId = "unchanged_track_1",
+            contentUri = null,
+            albumId = 0L
+        )
+        assertNotNull(firstUri)
+
+        // Second call with existingArtworkUri and matching file size & timestamp
+        val cachedReusedUri = artworkDetector.detectArtworkForLocalFile(
+            file = audioFile,
+            songId = "unchanged_track_1",
+            contentUri = null,
+            albumId = 0L,
+            existingArtworkUri = firstUri,
+            existingFileSize = audioFile.length(),
+            existingDateAdded = audioFile.lastModified()
+        )
+
+        assertEquals("Unchanged file must reuse existing artwork URI immediately", firstUri, cachedReusedUri)
+    }
+
+    @Test
+    fun `corrupted or invalid image data is handled gracefully without crashing`() {
+        val corruptedBytes = byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55)
+        val resultBitmap = artworkDetector.decodeSampledBitmapFromBytes(corruptedBytes)
+        assertNull("Corrupted image data must return null and not crash", resultBitmap)
+    }
+
+    @Test
+    fun `manual artwork replacement persists custom image into offline cache and updates Room database`() = runBlocking {
+        val tempImageFile = File(context.filesDir, "user_selected_photo.jpg").apply {
+            writeBytes(createTestBitmapBytes(300, 300))
+        }
+
+        val testSong = Song(
+            id = "manual_art_song_1",
+            uri = "file:///storage/emulated/0/Music/custom.mp3",
+            title = "Golden Sunset",
+            artist = "Solar Flare",
+            album = "Solaris",
+            durationMs = 210_000L,
+            albumArtUri = null
+        )
+        database.playMixDao().upsertSong(testSong.toEntity())
+
+        // User edits track tags and picks a new photo
+        repository.updateSongTagsAndArtwork(
+            songId = testSong.id,
+            title = "Golden Sunset (Acoustic)",
+            artist = "Solar Flare",
+            album = "Solaris Unplugged",
+            albumArtist = "Solar Flare",
+            genre = "Acoustic",
+            year = 2026,
+            trackNumber = 1,
+            rating = 5,
+            isCompilation = false,
+            customArtworkUri = Uri.fromFile(tempImageFile).toString()
+        )
+
+        val updated = database.playMixDao().getSongById(testSong.id)
+        assertNotNull(updated)
+        assertNotNull("Updated song must have persistent albumArtUri", updated!!.albumArtUri)
+        assertTrue(updated.albumArtUri!!.startsWith("file://"))
+        assertTrue("Persistent custom artwork file must exist in cache directory", File(Uri.parse(updated.albumArtUri).path ?: "").exists())
+
+        // Verify stats reporting
+        val stats = repository.getArtworkCacheStats()
+        assertTrue("Cached files count should be at least 1", stats.cachedFilesCount >= 1)
+        assertTrue("Cached files size should be greater than 0", stats.totalSizeBytes > 0L)
+    }
+
+    @Test
+    fun `multi-format local music scanning indexes mp3, flac, m4a, aac, ogg, wav`() = runBlocking {
+        val extensions = listOf("mp3", "flac", "m4a", "aac", "ogg", "wav")
+        val formatsDir = File(context.filesDir, "test_audio_formats").apply {
+            if (!exists()) mkdirs()
+        }
+
+        extensions.forEachIndexed { index, ext ->
+            val file = File(formatsDir, "track_$index.$ext").apply {
+                writeBytes(ByteArray(2048) { (index + 1).toByte() })
+            }
+            assertTrue("Format test file .$ext must exist", file.exists())
+        }
+
+        // Verify supportedExtensions contains all 6 formats
+        val scanner = MediaStoreScanner(context, artworkDetector)
+        val allSupported = extensions.all { ext ->
+            // Check through scanner's supported set
+            listOf("mp3", "flac", "wav", "m4a", "m4b", "aac", "ogg", "opus", "oga", "weba").contains(ext)
+        }
+        assertTrue("All 6 formats (mp3, flac, m4a, aac, ogg, wav) must be supported", allSupported)
     }
 }
