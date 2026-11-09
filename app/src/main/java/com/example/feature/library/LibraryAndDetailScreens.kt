@@ -1,6 +1,8 @@
 package com.example.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -59,10 +62,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -75,10 +77,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.core.ui.AlbumArtworkBox
 import com.example.core.ui.BulkTagEditorDialog
 import com.example.core.ui.ConfirmDeleteFromDeviceDialog
@@ -219,16 +227,48 @@ fun LibraryScreen(
         else -> AudioCategory.MUSIC
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Top Header
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            ElectricViolet.copy(alpha = 0.16f),
+                            SoftCyan.copy(alpha = 0.06f),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * 0.85f, size.height * 0.05f),
+                        radius = size.width * 0.85f
+                    ),
+                    center = Offset(size.width * 0.85f, size.height * 0.05f),
+                    radius = size.width * 0.85f
+                )
+            }
+    ) {
+        // Android 15 Expressive Top Header with Glassmorphic Action Cluster
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = ElectricViolet.copy(alpha = 0.18f),
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Text(
+                        text = "ANDROID 15 • 8-CATEGORY ENGINE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SoftCyan,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
+                }
                 Text(
                     text = when (currentTab) {
                         LibraryTab.CATEGORIES -> "${selectedCategory.displayName} Library"
@@ -259,53 +299,110 @@ fun LibraryScreen(
                 )
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = {
-                        isMultiSelectMode = !isMultiSelectMode
-                        if (!isMultiSelectMode) selectedSongIds = emptySet()
-                    },
-                    modifier = Modifier.testTag("library_multiselect_btn")
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
+                modifier = Modifier.border(
+                    width = 1.dp,
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            ElectricViolet.copy(alpha = 0.35f),
+                            SoftCyan.copy(alpha = 0.35f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(24.dp)
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Checklist,
-                        contentDescription = "Multi-select mode",
-                        tint = if (isMultiSelectMode) SoftCyan else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                IconButton(onClick = onOpenSearch, modifier = Modifier.testTag("library_search_btn")) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
-                }
-                IconButton(onClick = onPickSafFolder, modifier = Modifier.testTag("library_saf_btn")) {
-                    Icon(Icons.Default.CreateNewFolder, contentDescription = "Add Folder via SAF", tint = SoftCyan)
-                }
-                IconButton(onClick = onRescanLibrary, modifier = Modifier.testTag("library_rescan_btn")) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Rescan")
-                }
-                Box {
                     IconButton(
-                        onClick = { sortMenuExpanded = true },
-                        modifier = Modifier.testTag("library_sort_btn")
+                        onClick = {
+                            isMultiSelectMode = !isMultiSelectMode
+                            if (!isMultiSelectMode) selectedSongIds = emptySet()
+                        },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("library_multiselect_btn")
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort tracks")
+                        Icon(
+                            imageVector = Icons.Default.Checklist,
+                            contentDescription = "Multi-select mode",
+                            tint = if (isMultiSelectMode) SoftCyan else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                    DropdownMenu(
-                        expanded = sortMenuExpanded,
-                        onDismissRequest = { sortMenuExpanded = false }
+                    IconButton(
+                        onClick = onOpenSearch,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("library_search_btn")
                     ) {
-                        SortOption.entries.forEach { option ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = option.label,
-                                        color = if (option == currentSort) SoftCyan else MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
-                                onClick = {
-                                    sortMenuExpanded = false
-                                    onSelectSort(option)
-                                }
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onPickSafFolder,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("library_saf_btn")
+                    ) {
+                        Icon(
+                            Icons.Default.CreateNewFolder,
+                            contentDescription = "Add Folder via SAF",
+                            tint = SoftCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onRescanLibrary,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .testTag("library_rescan_btn")
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Rescan",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Box {
+                        IconButton(
+                            onClick = { sortMenuExpanded = true },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("library_sort_btn")
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sort tracks",
+                                modifier = Modifier.size(20.dp)
                             )
+                        }
+                        DropdownMenu(
+                            expanded = sortMenuExpanded,
+                            onDismissRequest = { sortMenuExpanded = false }
+                        ) {
+                            SortOption.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = option.label,
+                                            color = if (option == currentSort) SoftCyan else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    onClick = {
+                                        sortMenuExpanded = false
+                                        onSelectSort(option)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -315,11 +412,16 @@ fun LibraryScreen(
         // Multi-Select Action Bar (Supports Move to Category, Remove from Category, Restore, Bulk Edit, Delete)
         if (isMultiSelectMode) {
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.78f),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(14.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .border(
+                        width = 1.dp,
+                        color = SoftCyan.copy(alpha = 0.45f),
+                        shape = RoundedCornerShape(22.dp)
+                    ),
+                shape = RoundedCornerShape(22.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -421,24 +523,56 @@ fun LibraryScreen(
             }
         }
 
-        ScrollableTabRow(
-            selectedTabIndex = selectedTabIndex,
-            edgePadding = 16.dp,
-            containerColor = MaterialTheme.colorScheme.background
+        // Android 15 Expressive Segmented Capsule Tab Selector (Replaces Android 5 ScrollableTabRow underline)
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            tabs.forEachIndexed { idx, tab ->
+            itemsIndexed(tabs) { idx, tab ->
+                val isSelected = selectedTabIndex == idx
                 val tabLabel = when (tab) {
                     LibraryTab.REMOVED_HIDDEN ->
                         if (hiddenAndRemovedSongs.isNotEmpty()) "Hidden (${hiddenAndRemovedSongs.size})"
                         else "Hidden / Removed"
                     else -> tab.title
                 }
-                Tab(
-                    selected = selectedTabIndex == idx,
-                    onClick = { selectedTabIndex = idx },
-                    text = { Text(tabLabel) },
-                    modifier = Modifier.testTag("lib_tab_${tab.name.lowercase()}")
-                )
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (isSelected) {
+                        ElectricViolet
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable { selectedTabIndex = idx }
+                        .border(
+                            width = 1.dp,
+                            brush = if (isSelected) {
+                                Brush.horizontalGradient(listOf(SoftCyan, ElectricViolet))
+                            } else {
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.08f),
+                                        Color.White.copy(alpha = 0.04f)
+                                    )
+                                )
+                            },
+                            shape = RoundedCornerShape(50)
+                        )
+                        .testTag("lib_tab_${tab.name.lowercase()}")
+                ) {
+                    Text(
+                        text = tabLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
             }
         }
 
@@ -1309,7 +1443,13 @@ private fun CategoryFilterSearchBar(
         value = query,
         onValueChange = onQueryChange,
         placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        leadingIcon = {
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = SoftCyan
+            )
+        },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
@@ -1318,7 +1458,13 @@ private fun CategoryFilterSearchBar(
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(50),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+            focusedBorderColor = SoftCyan.copy(alpha = 0.65f),
+            unfocusedBorderColor = Color.White.copy(alpha = 0.08f)
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("category_filter_search_input")
@@ -1331,14 +1477,20 @@ private fun EmptyCategoryCard(
     message: String
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(24.dp)
+            ),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
@@ -1383,63 +1535,92 @@ fun AlbumDetailScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AlbumArtworkBox(
-                    artworkUri = album.artworkUri,
-                    title = album.name,
-                    modifier = Modifier.size(120.dp),
-                    cornerRadius = 22.dp
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                ElectricViolet.copy(alpha = 0.45f),
+                                SoftCyan.copy(alpha = 0.35f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    ),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = album.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = album.artist,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = SoftCyan
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${album.year} • ${album.songs.size} tracks • ${formatDurationMs(album.totalDurationMs)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainer
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlbumArtworkBox(
+                            artworkUri = album.artworkUri,
+                            title = album.name,
+                            modifier = Modifier.size(120.dp),
+                            cornerRadius = 26.dp
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = album.name,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = album.artist,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = SoftCyan
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${album.year} • ${album.songs.size} tracks • ${formatDurationMs(album.totalDurationMs)}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
-            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = { onPlaySongList(album.songs, 0) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Play Album")
-                }
-                FilledTonalButton(
-                    onClick = { onShufflePlay(album.songs) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Shuffle, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Shuffle")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { onPlaySongList(album.songs, 0) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Play Album")
+                        }
+                        FilledTonalButton(
+                            onClick = { onShufflePlay(album.songs) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Icon(Icons.Default.Shuffle, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Shuffle")
+                        }
+                    }
                 }
             }
         }
@@ -1487,54 +1668,83 @@ fun ArtistDetailScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AlbumArtworkBox(
-                    artworkUri = artist.artworkUri,
-                    title = artist.name,
-                    modifier = Modifier.size(96.dp),
-                    cornerRadius = 48.dp
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                ElectricViolet.copy(alpha = 0.45f),
+                                SoftCyan.copy(alpha = 0.35f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    ),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = artist.name,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${artist.albumCount} albums • ${artist.songs.size} tracks",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = SoftCyan
-                    )
-                }
-            }
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainer
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AlbumArtworkBox(
+                            artworkUri = artist.artworkUri,
+                            title = artist.name,
+                            modifier = Modifier.size(96.dp),
+                            cornerRadius = 48.dp
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = artist.name,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${artist.albumCount} albums • ${artist.songs.size} tracks",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SoftCyan
+                            )
+                        }
+                    }
 
-            Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = { onPlaySongList(artist.songs, 0) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Play Artist")
-                }
-                FilledTonalButton(
-                    onClick = { onShufflePlay(artist.songs) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Shuffle, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Shuffle")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { onPlaySongList(artist.songs, 0) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Play Artist")
+                        }
+                        FilledTonalButton(
+                            onClick = { onShufflePlay(artist.songs) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Icon(Icons.Default.Shuffle, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Shuffle")
+                        }
+                    }
                 }
             }
         }
@@ -1589,86 +1799,121 @@ fun PlaylistDetailScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                ElectricViolet.copy(alpha = 0.45f),
+                                SoftCyan.copy(alpha = 0.35f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    ),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        }
 
-                if (!playlist.isSmart) {
-                    Row {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    exportedM3uContent = onExportM3u(playlist)
+                        if (!playlist.isSmart) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainer
+                            ) {
+                                Row {
+                                    IconButton(
+                                        onClick = {
+                                            scope.launch {
+                                                exportedM3uContent = onExportM3u(playlist)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.FileDownload, contentDescription = "Export M3U8", tint = SoftCyan)
+                                    }
+                                    IconButton(onClick = { showRenameDialog = true }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Rename playlist")
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            onDeletePlaylist(playlist.id)
+                                            onBack()
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete playlist",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
-                        ) {
-                            Icon(Icons.Default.FileDownload, contentDescription = "Export M3U8", tint = SoftCyan)
-                        }
-                        IconButton(onClick = { showRenameDialog = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Rename playlist")
-                        }
-                        IconButton(
-                            onClick = {
-                                onDeletePlaylist(playlist.id)
-                                onBack()
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete playlist",
-                                tint = MaterialTheme.colorScheme.error
-                            )
                         }
                     }
-                }
-            }
 
-            Text(
-                text = playlist.name,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            if (playlist.description.isNotBlank()) {
-                Text(
-                    text = playlist.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = "${playlist.songs.size} tracks",
-                style = MaterialTheme.typography.labelMedium,
-                color = SoftCyan
-            )
+                    Spacer(modifier = Modifier.height(10.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = playlist.name,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (playlist.description.isNotBlank()) {
+                        Text(
+                            text = playlist.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = "${playlist.songs.size} tracks",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = SoftCyan
+                    )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = { if (playlist.songs.isNotEmpty()) onPlaySongList(playlist.songs, 0) },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Play All")
-                }
-                FilledTonalButton(
-                    onClick = { if (playlist.songs.isNotEmpty()) onShufflePlay(playlist.songs) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Shuffle, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Shuffle")
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { if (playlist.songs.isNotEmpty()) onPlaySongList(playlist.songs, 0) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Play All")
+                        }
+                        FilledTonalButton(
+                            onClick = { if (playlist.songs.isNotEmpty()) onShufflePlay(playlist.songs) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(50)
+                        ) {
+                            Icon(Icons.Default.Shuffle, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Shuffle")
+                        }
+                    }
                 }
             }
         }

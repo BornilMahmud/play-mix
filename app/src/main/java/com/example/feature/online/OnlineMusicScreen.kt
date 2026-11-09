@@ -1,6 +1,7 @@
 package com.example.feature.online
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -43,9 +45,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,12 +59,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.core.datastore.UserPreferences
 import com.example.core.ui.AlbumArtworkBox
 import com.example.core.ui.SongRowItem
@@ -115,30 +119,56 @@ fun OnlineMusicScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SoftCyan.copy(alpha = 0.14f),
+                            ElectricViolet.copy(alpha = 0.08f),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * 0.8f, size.height * 0.06f),
+                        radius = size.width * 0.85f
+                    ),
+                    center = Offset(size.width * 0.8f, size.height * 0.06f),
+                    radius = size.width * 0.85f
+                )
+            }
             .testTag("online_music_screen")
     ) {
-        // Header bar
+        // Android 15 Expressive Header bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Cloud,
-                        contentDescription = null,
-                        tint = SoftCyan,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "UNIVERSAL ONLINE DISCOVERY",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = SoftCyan
-                    )
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = SoftCyan.copy(alpha = 0.16f),
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Cloud,
+                            contentDescription = null,
+                            tint = SoftCyan,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "ANDROID 15 • CLOUD DISCOVERY",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SoftCyan,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.7.sp
+                        )
+                    }
                 }
                 Text(
                     text = strings.navOnline,
@@ -147,15 +177,24 @@ fun OnlineMusicScreen(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                IconButton(
-                    onClick = onRefreshCatalog,
-                    modifier = Modifier.testTag("online_refresh_button")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh Online Catalog")
+                    IconButton(
+                        onClick = onRefreshCatalog,
+                        modifier = Modifier.testTag("online_refresh_button")
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh Online Catalog", tint = SoftCyan)
+                    }
                 }
                 OutlinedButton(
                     onClick = { showProviderSettingsDialog = true },
+                    shape = RoundedCornerShape(50),
                     modifier = Modifier.testTag("online_provider_settings_button")
                 ) {
                     Icon(
@@ -181,6 +220,7 @@ fun OnlineMusicScreen(
                 FilterChip(
                     selected = provider.isConfigured && provider.isEnabled,
                     onClick = { showProviderSettingsDialog = true },
+                    shape = RoundedCornerShape(50),
                     label = {
                         Text(
                             text = if (provider.requiresApiKey && !provider.isConfigured) {
@@ -202,7 +242,7 @@ fun OnlineMusicScreen(
             }
         }
 
-        // Online search input bar
+        // Android 15 Expressive Capsule Search Input Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -214,9 +254,15 @@ fun OnlineMusicScreen(
                 value = onlineQuery,
                 onValueChange = { onlineQuery = it },
                 placeholder = { Text("Search Apple iTunes, Internet Archive, Jamendo...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SoftCyan) },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                    focusedBorderColor = SoftCyan.copy(alpha = 0.65f),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.08f)
+                ),
                 modifier = Modifier
                     .weight(1f)
                     .testTag("online_search_input")
@@ -228,30 +274,58 @@ fun OnlineMusicScreen(
                         onSearchOnline(onlineQuery)
                     }
                 },
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
                 modifier = Modifier.testTag("online_search_submit_button")
             ) {
                 Text("Search")
             }
         }
 
-        ScrollableTabRow(
-            selectedTabIndex = selectedSection,
-            edgePadding = 16.dp,
-            containerColor = Color.Transparent,
-            contentColor = SoftCyan
+        // Android 15 Expressive Segmented Capsule Tabs (Replaces Android 5 ScrollableTabRow)
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            sections.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedSection == index,
-                    onClick = { selectedSection = index },
-                    text = {
-                        Text(
-                            text = title,
-                            fontWeight = if (selectedSection == index) FontWeight.Bold else FontWeight.Medium
-                        )
+            itemsIndexed(sections) { index, title ->
+                val isSelected = selectedSection == index
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (isSelected) {
+                        ElectricViolet
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
                     },
-                    modifier = Modifier.testTag("online_tab_$index")
-                )
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable { selectedSection = index }
+                        .border(
+                            width = 1.dp,
+                            brush = if (isSelected) {
+                                Brush.horizontalGradient(listOf(SoftCyan, ElectricViolet))
+                            } else {
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.08f),
+                                        Color.White.copy(alpha = 0.04f)
+                                    )
+                                )
+                            },
+                            shape = RoundedCornerShape(50)
+                        )
+                        .testTag("online_tab_$index")
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
             }
         }
 

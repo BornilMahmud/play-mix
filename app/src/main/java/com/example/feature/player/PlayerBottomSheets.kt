@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -64,6 +66,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -78,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.core.ui.AlbumArtworkBox
 import com.example.core.ui.AnimatedPlayingIndicator
 import com.example.data.lyrics.LrcLibSearchResult
@@ -775,17 +779,46 @@ fun EqualizerAndEffectsContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            ElectricViolet.copy(alpha = 0.16f),
+                            SoftCyan.copy(alpha = 0.08f),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * 0.8f, size.height * 0.08f),
+                        radius = size.width * 0.85f
+                    ),
+                    center = Offset(size.width * 0.8f, size.height * 0.08f),
+                    radius = size.width * 0.85f
+                )
+            }
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Header + Master Enable Switch
+        // Android 15 Expressive Header + Master Enable Capsule
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = ElectricViolet.copy(alpha = 0.18f),
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Text(
+                        text = "ANDROID 15 • HARDWARE DSP ENGINE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SoftCyan,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.7.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
+                }
                 Text(
                     text = "5-Band Equalizer & DSP Engine",
                     style = MaterialTheme.typography.headlineSmall,
@@ -798,27 +831,50 @@ fun EqualizerAndEffectsContent(
                 )
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onResetDefault,
-                    modifier = Modifier.testTag("eq_reset_button")
-                ) {
-                    Icon(Icons.Default.Restore, contentDescription = "Reset Equalizer")
-                }
-                Switch(
-                    checked = effectsState.isEnabled,
-                    onCheckedChange = onToggleEnabled,
-                    modifier = Modifier.testTag("eq_enable_switch")
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(50)
                 )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    IconButton(
+                        onClick = onResetDefault,
+                        modifier = Modifier.testTag("eq_reset_button")
+                    ) {
+                        Icon(Icons.Default.Restore, contentDescription = "Reset Equalizer", tint = SoftCyan)
+                    }
+                    Switch(
+                        checked = effectsState.isEnabled,
+                        onCheckedChange = onToggleEnabled,
+                        modifier = Modifier.testTag("eq_enable_switch")
+                    )
+                }
             }
         }
 
-        // Frequency Response Curve Visualizer Canvas
+        // Android 15 Glowing Frequency Response Curve Visualizer Canvas
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(110.dp),
-            shape = RoundedCornerShape(18.dp),
+                .height(132.dp)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            ElectricViolet.copy(alpha = 0.45f),
+                            SoftCyan.copy(alpha = 0.45f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(26.dp)
+                ),
+            shape = RoundedCornerShape(26.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
@@ -826,39 +882,87 @@ fun EqualizerAndEffectsContent(
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
                 val w = size.width
                 val h = size.height
                 val midY = h / 2f
 
+                // Reference dB lines
                 drawLine(
-                    color = Color.White.copy(alpha = 0.15f),
+                    color = Color.White.copy(alpha = 0.07f),
+                    start = Offset(0f, h * 0.15f),
+                    end = Offset(w, h * 0.15f),
+                    strokeWidth = 1.dp.toPx()
+                )
+                drawLine(
+                    color = Color.White.copy(alpha = 0.16f),
                     start = Offset(0f, midY),
                     end = Offset(w, midY),
-                    strokeWidth = 2f
+                    strokeWidth = 1.5.dp.toPx()
+                )
+                drawLine(
+                    color = Color.White.copy(alpha = 0.07f),
+                    start = Offset(0f, h * 0.85f),
+                    end = Offset(w, h * 0.85f),
+                    strokeWidth = 1.dp.toPx()
                 )
 
                 val bands = effectsState.bands
                 if (bands.isNotEmpty()) {
-                    val path = Path()
+                    val linePath = Path()
+                    val fillPath = Path()
                     val stepX = w / (bands.size - 1).coerceAtLeast(1)
                     bands.forEachIndexed { idx, band ->
                         val norm = (band.currentLevelMb.toFloat() / band.maxLevelMb.coerceAtLeast(1)).coerceIn(-1f, 1f)
                         val x = idx * stepX
                         val y = midY - (norm * (h * 0.42f))
-                        if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        if (idx == 0) {
+                            linePath.moveTo(x, y)
+                            fillPath.moveTo(x, h)
+                            fillPath.lineTo(x, y)
+                        } else {
+                            linePath.lineTo(x, y)
+                            fillPath.lineTo(x, y)
+                        }
+                        if (idx == bands.lastIndex) {
+                            fillPath.lineTo(x, h)
+                            fillPath.close()
+                        }
+                    }
+
+                    drawPath(
+                        path = fillPath,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                SoftCyan.copy(alpha = if (effectsState.isEnabled) 0.28f else 0.08f),
+                                ElectricViolet.copy(alpha = if (effectsState.isEnabled) 0.14f else 0.04f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+
+                    drawPath(
+                        path = linePath,
+                        brush = Brush.horizontalGradient(listOf(ElectricViolet, SoftCyan)),
+                        style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
+                    )
+
+                    bands.forEachIndexed { idx, band ->
+                        val norm = (band.currentLevelMb.toFloat() / band.maxLevelMb.coerceAtLeast(1)).coerceIn(-1f, 1f)
+                        val x = idx * stepX
+                        val y = midY - (norm * (h * 0.42f))
+                        drawCircle(
+                            color = if (effectsState.isEnabled) SoftCyan.copy(alpha = 0.28f) else Color.Transparent,
+                            radius = 11.dp.toPx(),
+                            center = Offset(x, y)
+                        )
                         drawCircle(
                             color = if (effectsState.isEnabled) SoftCyan else Color.Gray,
-                            radius = 6.dp.toPx(),
+                            radius = 5.5.dp.toPx(),
                             center = Offset(x, y)
                         )
                     }
-                    drawPath(
-                        path = path,
-                        brush = Brush.horizontalGradient(listOf(ElectricViolet, SoftCyan)),
-                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                    )
                 }
             }
         }
@@ -876,7 +980,8 @@ fun EqualizerAndEffectsContent(
             )
             OutlinedButton(
                 onClick = { showSaveCustomPresetDialog = true },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                shape = RoundedCornerShape(50),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
@@ -892,6 +997,7 @@ fun EqualizerAndEffectsContent(
                 FilterChip(
                     selected = effectsState.activePreset == preset && effectsState.activeCustomPresetName == null,
                     onClick = { onSelectPreset(preset) },
+                    shape = RoundedCornerShape(50),
                     label = { Text(preset.displayName) },
                     modifier = Modifier.testTag("eq_preset_${preset.name.lowercase()}")
                 )
@@ -900,6 +1006,7 @@ fun EqualizerAndEffectsContent(
                 FilterChip(
                     selected = effectsState.activeCustomPresetName == custom.name,
                     onClick = { onApplyCustomPreset(custom) },
+                    shape = RoundedCornerShape(50),
                     label = { Text(custom.name) },
                     trailingIcon = {
                         Icon(
@@ -914,16 +1021,22 @@ fun EqualizerAndEffectsContent(
             }
         }
 
-        // 5-Band Frequency Sliders
+        // 5-Band Frequency Sliders Island Card
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(26.dp)
+                ),
+            shape = RoundedCornerShape(26.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             )
         ) {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 effectsState.bands.forEach { band ->
@@ -958,16 +1071,22 @@ fun EqualizerAndEffectsContent(
             }
         }
 
-        // Preamp, Left/Right Balance, Mono, ReplayGain & Clipping Prevention
+        // Preamp, Left/Right Balance, Mono, ReplayGain & Clipping Prevention Island Card
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(26.dp)
+                ),
+            shape = RoundedCornerShape(26.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             )
         ) {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Preamp, Stereo Balance & ReplayGain", style = MaterialTheme.typography.titleSmall, color = SoftCyan)
@@ -1027,6 +1146,7 @@ fun EqualizerAndEffectsContent(
                         FilterChip(
                             selected = effectsState.replayGainMode == mode,
                             onClick = { onReplayGainModeChange(mode) },
+                            shape = RoundedCornerShape(50),
                             label = { Text(mode.label) }
                         )
                     }
@@ -1086,16 +1206,22 @@ fun EqualizerAndEffectsContent(
             }
         }
 
-        // Bass Boost, Virtualizer & Loudness Normalization
+        // Bass Boost, Virtualizer & Loudness Normalization Island Card
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(26.dp)
+                ),
+            shape = RoundedCornerShape(26.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             )
         ) {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(

@@ -347,154 +347,159 @@ fun PlayMixAppRoot(viewModel: PlayMixViewModel) {
                         )
                     }
 
-                    // Top hairline luminous gradient divider for NavigationBar
-                    Box(
+                    // Floating Android 15 Expressive Capsule Dock Navigation Bar
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(1.dp)
-                            .background(
-                                Brush.horizontalGradient(
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.horizontalGradient(
                                     colors = listOf(
-                                        Color.Transparent,
                                         ElectricViolet.copy(alpha = 0.45f),
-                                        SoftCyan.copy(alpha = 0.55f),
-                                        Color.Transparent
+                                        SoftCyan.copy(alpha = 0.45f),
+                                        ElectricViolet.copy(alpha = 0.30f)
                                     )
-                                )
-                            )
-                    )
-
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f),
-                        tonalElevation = 0.dp
+                                ),
+                                shape = RoundedCornerShape(28.dp)
+                            ),
+                        shape = RoundedCornerShape(28.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                        tonalElevation = 6.dp,
+                        shadowElevation = 12.dp
                     ) {
-                        val navColors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = SoftCyan,
-                            selectedTextColor = SoftCyan,
-                            indicatorColor = ElectricViolet.copy(alpha = 0.24f),
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp
+                        ) {
+                            val navColors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SoftCyan,
+                                selectedTextColor = SoftCyan,
+                                indicatorColor = ElectricViolet.copy(alpha = 0.28f),
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                        val isHomeSelected = currentTab == MainDestination.HOME && subRoute == SubScreenRoute.None
-                        NavigationBarItem(
-                            selected = isHomeSelected,
-                            onClick = {
-                                subRoute = SubScreenRoute.None
-                                currentTab = MainDestination.HOME
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isHomeSelected) Icons.Filled.Home else Icons.Outlined.Home,
-                                    contentDescription = strings.navHome
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = strings.navHome,
-                                    maxLines = 1,
-                                    fontWeight = if (isHomeSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            colors = navColors,
-                            modifier = Modifier.testTag("nav_home")
-                        )
+                            val isHomeSelected = currentTab == MainDestination.HOME && subRoute == SubScreenRoute.None
+                            NavigationBarItem(
+                                selected = isHomeSelected,
+                                onClick = {
+                                    subRoute = SubScreenRoute.None
+                                    currentTab = MainDestination.HOME
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isHomeSelected) Icons.Filled.Home else Icons.Outlined.Home,
+                                        contentDescription = strings.navHome
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = strings.navHome,
+                                        maxLines = 1,
+                                        fontWeight = if (isHomeSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = navColors,
+                                modifier = Modifier.testTag("nav_home")
+                            )
 
-                        val isLibrarySelected = currentTab == MainDestination.LIBRARY && subRoute == SubScreenRoute.None
-                        NavigationBarItem(
-                            selected = isLibrarySelected,
-                            onClick = {
-                                subRoute = SubScreenRoute.None
-                                currentTab = MainDestination.LIBRARY
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isLibrarySelected) Icons.Filled.LibraryMusic else Icons.Outlined.LibraryMusic,
-                                    contentDescription = strings.navLibrary
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = strings.navLibrary,
-                                    maxLines = 1,
-                                    fontWeight = if (isLibrarySelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            colors = navColors,
-                            modifier = Modifier.testTag("nav_library")
-                        )
+                            val isLibrarySelected = currentTab == MainDestination.LIBRARY && subRoute == SubScreenRoute.None
+                            NavigationBarItem(
+                                selected = isLibrarySelected,
+                                onClick = {
+                                    subRoute = SubScreenRoute.None
+                                    currentTab = MainDestination.LIBRARY
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isLibrarySelected) Icons.Filled.LibraryMusic else Icons.Outlined.LibraryMusic,
+                                        contentDescription = strings.navLibrary
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = strings.navLibrary,
+                                        maxLines = 1,
+                                        fontWeight = if (isLibrarySelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = navColors,
+                                modifier = Modifier.testTag("nav_library")
+                            )
 
-                        val isOnlineSelected = currentTab == MainDestination.ONLINE && subRoute == SubScreenRoute.None
-                        NavigationBarItem(
-                            selected = isOnlineSelected,
-                            onClick = {
-                                subRoute = SubScreenRoute.None
-                                currentTab = MainDestination.ONLINE
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isOnlineSelected) Icons.Filled.Cloud else Icons.Outlined.Cloud,
-                                    contentDescription = strings.navOnline
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = strings.navOnline,
-                                    maxLines = 1,
-                                    fontWeight = if (isOnlineSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            colors = navColors,
-                            modifier = Modifier.testTag("nav_online")
-                        )
+                            val isOnlineSelected = currentTab == MainDestination.ONLINE && subRoute == SubScreenRoute.None
+                            NavigationBarItem(
+                                selected = isOnlineSelected,
+                                onClick = {
+                                    subRoute = SubScreenRoute.None
+                                    currentTab = MainDestination.ONLINE
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isOnlineSelected) Icons.Filled.Cloud else Icons.Outlined.Cloud,
+                                        contentDescription = strings.navOnline
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = strings.navOnline,
+                                        maxLines = 1,
+                                        fontWeight = if (isOnlineSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = navColors,
+                                modifier = Modifier.testTag("nav_online")
+                            )
 
-                        val isEqSelected = currentTab == MainDestination.EQUALIZER && subRoute == SubScreenRoute.None
-                        NavigationBarItem(
-                            selected = isEqSelected,
-                            onClick = {
-                                subRoute = SubScreenRoute.None
-                                currentTab = MainDestination.EQUALIZER
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isEqSelected) Icons.Filled.Equalizer else Icons.Outlined.Equalizer,
-                                    contentDescription = strings.navEqualizer
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = strings.navEqualizer,
-                                    maxLines = 1,
-                                    fontWeight = if (isEqSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            colors = navColors,
-                            modifier = Modifier.testTag("nav_equalizer")
-                        )
+                            val isEqSelected = currentTab == MainDestination.EQUALIZER && subRoute == SubScreenRoute.None
+                            NavigationBarItem(
+                                selected = isEqSelected,
+                                onClick = {
+                                    subRoute = SubScreenRoute.None
+                                    currentTab = MainDestination.EQUALIZER
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isEqSelected) Icons.Filled.Equalizer else Icons.Outlined.Equalizer,
+                                        contentDescription = strings.navEqualizer
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = strings.navEqualizer,
+                                        maxLines = 1,
+                                        fontWeight = if (isEqSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = navColors,
+                                modifier = Modifier.testTag("nav_equalizer")
+                            )
 
-                        val isSettingsSelected = currentTab == MainDestination.SETTINGS && subRoute == SubScreenRoute.None
-                        NavigationBarItem(
-                            selected = isSettingsSelected,
-                            onClick = {
-                                subRoute = SubScreenRoute.None
-                                currentTab = MainDestination.SETTINGS
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isSettingsSelected) Icons.Filled.Settings else Icons.Outlined.Settings,
-                                    contentDescription = strings.navSettings
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = strings.navSettings,
-                                    maxLines = 1,
-                                    fontWeight = if (isSettingsSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            colors = navColors,
-                            modifier = Modifier.testTag("nav_settings")
-                        )
+                            val isSettingsSelected = currentTab == MainDestination.SETTINGS && subRoute == SubScreenRoute.None
+                            NavigationBarItem(
+                                selected = isSettingsSelected,
+                                onClick = {
+                                    subRoute = SubScreenRoute.None
+                                    currentTab = MainDestination.SETTINGS
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isSettingsSelected) Icons.Filled.Settings else Icons.Outlined.Settings,
+                                        contentDescription = strings.navSettings
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = strings.navSettings,
+                                        maxLines = 1,
+                                        fontWeight = if (isSettingsSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = navColors,
+                                modifier = Modifier.testTag("nav_settings")
+                            )
+                        }
                     }
                 }
             }
